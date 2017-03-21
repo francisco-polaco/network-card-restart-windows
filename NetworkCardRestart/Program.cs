@@ -10,8 +10,8 @@ namespace NetworkCardRestart
 {
     class Program
     {
-        private const int MillisecondsTimeoutDC = 5000;
-        private const int MillisecondsTimeoutC = 7000;
+        private const int MillisecondsTimeoutDC = 1000 * 5;
+        private const int MillisecondsTimeoutC = 1000 * 12;
 
         private const int TimesPing = 4;
         private const int AttemptsToRestart = 20;
