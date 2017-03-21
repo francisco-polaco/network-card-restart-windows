@@ -1,28 +1,34 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Management;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using ROOT.CIMV2.Win32;
 
 namespace NetworkCardRestart
 {
     class Program
     {
-        private const int MillisecondsTimeout = 3000;
+        private const int MillisecondsTimeoutDC = 5000;
+        private const int MillisecondsTimeoutC = 7000;
+
+        private const int TimesPing = 4;
+        private const int AttemptsToRestart = 20;
 
         static void Main(string[] args)
         {
-            while (!PingTest())
+            uint counter = 0;
+            while (!PingTest() && counter++ < AttemptsToRestart)
             {
                 RestartAdapter();
             }
-            Console.ReadLine();
+            if (counter == AttemptsToRestart)
+            {
+                Console.WriteLine("We have reached the maximum amount of tries.");
+            }
+            Console.WriteLine("Finishing.");
+            //Console.ReadLine();
         }
 
         private static void RestartAdapter()
@@ -45,9 +51,12 @@ namespace NetworkCardRestart
                     if (adapter.AdapterType.Equals("Ethernet 802.3"))
                     {
                         adapter.Disable();
-                        Console.WriteLine("Waiting " + MillisecondsTimeout / 1000 + " seconds to activate the card.");
-                        Thread.Sleep(MillisecondsTimeout);
+                        Console.WriteLine("Waiting " + MillisecondsTimeoutDC / 1000 + " seconds to activate the card.");
+                        Thread.Sleep(MillisecondsTimeoutDC);
                         adapter.Enable();
+                        Console.WriteLine("Waiting " + MillisecondsTimeoutC / 1000 +
+                                          " seconds in order to get the card ready.");
+                        Thread.Sleep(MillisecondsTimeoutC);
                     }
                 });
                 t.Start();
@@ -68,18 +77,36 @@ namespace NetworkCardRestart
 
             Ping ping = new Ping();
 
-            PingReply pingStatus = ping.Send(IPAddress.Parse("google.com"));
+            try
+            {
+                IPAddress ip = IPAddress.Parse("8.8.8.8");
 
-            if (pingStatus != null && pingStatus.Status == IPStatus.Success)
-            {
-                Console.WriteLine("We have Internet access.");
-                return true;
+                for (var i = 0; i < TimesPing; ++i)
+                {
+                    var reply = ping.Send(ip);
+                    Console.WriteLine("Reply from {0} Status: {1} time:{2}ms",
+                                      reply.Address,
+                                      reply.Status,
+                                      reply.RoundtripTime);
+                    if (reply.Status.ToString().Equals("Success"))
+                    {
+                        Console.WriteLine("We have Internet access.");
+                        return true;
+                    }
+                }
             }
-            else
+            catch (Exception e)
             {
-                Console.WriteLine("We don't have Internet access.");
+                //Console.WriteLine(e.Source);
+                Console.WriteLine(e.Message);
+                // Wait a little more
+                Console.WriteLine("Waiting a little longer.");
+                Thread.Sleep(MillisecondsTimeoutC);
                 return false;
             }
+
+            Console.WriteLine("We don't have Internet access.");
+            return false;
         }
     }
 }
